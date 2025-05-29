@@ -1,38 +1,186 @@
-.App {
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+
+body, .app-bg {
+  font-family: 'Inter', Helvetica, Arial, sans-serif;
+  background: #f6f7fb;
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+}
+
+.app-header {
+  padding: 2rem 0 1rem 0;
   text-align: center;
 }
 
-.App-logo {
-  height: 40vmin;
-  pointer-events: none;
+.app-title {
+  font-size: 2.2rem;
+  font-weight: 700;
+  color: #212326;
+  margin-bottom: 0.2rem;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  .App-logo {
-    animation: App-logo-spin infinite 20s linear;
-  }
+.app-subtitle {
+  color: #6b7280;
+  font-size: 1.1rem;
+  margin-bottom: 1.5rem;
 }
 
-.App-header {
-  background-color: #282c34;
-  min-height: 100vh;
+.main-content.roi-flex {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2rem;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 0 1rem 2rem 1rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.roi-card {
+  background: #fff;
+  border-radius: 18px;
+  box-shadow: 0 4px 24px 0 rgba(34, 41, 47, 0.08);
+  padding: 2rem 2rem 1.5rem 2rem;
+  min-width: 320px;
+  max-width: 370px;
+  flex: 1 1 340px;
   display: flex;
   flex-direction: column;
+  gap: 1.2rem;
+}
+
+.breakdown-card h2, .summary-card h2 {
+  font-size: 1.3rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: #212326;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin-bottom: 0.7rem;
+}
+
+.form-group label {
+  font-size: 0.98rem;
+  color: #6b7280;
+  font-weight: 500;
+  margin-bottom: 0.1rem;
+}
+
+input[type="number"], select {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 0.5rem 0.8rem;
+  font-size: 1rem;
+  background: #f9fafb;
+  color: #212326;
+  outline: none;
+  transition: border 0.2s;
+}
+input[type="number"]:focus, select:focus {
+  border: 1.5px solid #008060;
+  background: #fff;
+}
+
+input[type="range"] {
+  width: 100%;
+  accent-color: #008060;
+  margin-top: 0.2rem;
+}
+
+.slider-value {
+  font-size: 0.98rem;
+  color: #008060;
+  font-weight: 600;
+  margin-left: 0.5rem;
+}
+
+.breakdown-row {
+  display: flex;
+  justify-content: space-between;
   align-items: center;
-  justify-content: center;
-  font-size: calc(10px + 2vmin);
-  color: white;
+  font-size: 1.05rem;
+  margin: 0.2rem 0;
+  padding: 0.2rem 0;
+  border-bottom: 1px solid #f1f1f1;
+}
+.breakdown-row:last-child {
+  border-bottom: none;
 }
 
-.App-link {
-  color: #61dafb;
+.breakdown-row span:first-child {
+  color: #6b7280;
+}
+.breakdown-row span:last-child {
+  font-weight: 600;
+  color: #212326;
 }
 
-@keyframes App-logo-spin {
-  from {
-    transform: rotate(0deg);
+.breakdown-savings {
+  color: #008060;
+  font-weight: 700;
+  font-size: 1.15rem;
+}
+
+.summary-card {
+  background: linear-gradient(120deg, #e8f6f3 0%, #f6f7fb 100%);
+  border: 1.5px solid #b6e2d8;
+  box-shadow: 0 2px 12px 0 rgba(0, 128, 96, 0.07);
+}
+
+.roi-indicator {
+  margin-top: 1rem;
+  text-align: center;
+  font-size: 1.15rem;
+  font-weight: 700;
+  padding: 0.5rem 0;
+  border-radius: 8px;
+}
+.roi-indicator.positive {
+  color: #008060;
+  background: #e8f6f3;
+  border: 1.5px solid #b6e2d8;
+}
+.roi-indicator.negative {
+  color: #d72c0d;
+  background: #fbeaea;
+  border: 1.5px solid #f5c6cb;
+}
+
+.roi-section {
+  margin-bottom: 1.2rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+.roi-section:last-child {
+  border-bottom: none;
+}
+.roi-section-title {
+  font-size: 1.08rem;
+  font-weight: 600;
+  color: #008060;
+  margin-bottom: 0.4rem;
+}
+.roi-bonus {
+  background: #f6fdf9;
+  border-radius: 8px;
+  border: 1px dashed #b6e2d8;
+  padding: 0.7rem 1rem 0.7rem 1rem;
+  margin-bottom: 1.2rem;
+}
+
+@media (max-width: 900px) {
+  .main-content.roi-flex {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1.5rem;
   }
-  to {
-    transform: rotate(360deg);
+  .roi-card {
+    max-width: 100%;
+    min-width: 0;
   }
 }
