@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './App.css';
 
 const PLAN_OPTIONS = [
@@ -110,34 +110,76 @@ function App() {
   const [conversionIncrease, setConversionIncrease] = useState(1);
   const [monthlyRevenue, setMonthlyRevenue] = useState(10000);
 
+  // Editable processing fees
   const plan = PLAN_OPTIONS.find(p => p.key === currentPlan);
   const plus = PLUS_OPTIONS.find(p => p.key === plusPlan);
+  const [currentStandardRate, setCurrentStandardRate] = useState(plan.rates.standard);
+  const [currentFlatFee, setCurrentFlatFee] = useState(plan.rates.fee);
+  const [plusStandardRate, setPlusStandardRate] = useState(plus.rates.standard);
+  const [plusFlatFee, setPlusFlatFee] = useState(plus.rates.fee);
 
-  // Calculate base orders per month
-  const orders = aov > 0 && conversion > 0 ? monthlyRevenue / aov : 0;
-  // Current plan fees
-  const currentFees = monthlyRevenue * plan.rates.standard + orders * plan.rates.fee;
+  useEffect(() => {
+    setCurrentStandardRate(plan.rates.standard);
+    setCurrentFlatFee(plan.rates.fee);
+  }, [currentPlan]);
 
-  // Projected improvements
+  useEffect(() => {
+    setPlusStandardRate(plus.rates.standard);
+    setPlusFlatFee(plus.rates.fee);
+  }, [plusPlan]);
+
+  // --- NEW ROI LOGIC ---
+  // 1. Estimate current transactions and visitors
+  const currentTransactions = aov > 0 ? monthlyRevenue / aov : 0;
+  const conversionRateDecimal = conversion && conversion > 0 ? parseFloat(conversion) / 100 : 0;
+  const estimatedVisitors = conversionRateDecimal > 0 ? currentTransactions / conversionRateDecimal : 0;
+
+  // 2. Apply improvements
+  const improvedAOV = aov > 0 ? aov * (1 + aovIncrease / 100) : 0;
+  const improvedConversionRate = conversion && conversion > 0 ? parseFloat(conversion) * (1 + conversionIncrease / 100) / 100 : 0;
+  const transactionsWithPlus = improvedConversionRate > 0 ? estimatedVisitors * improvedConversionRate : 0;
+  const revenueWithPlus = transactionsWithPlus * improvedAOV;
+
+  // 3. Calculate costs
+  // Current Plan
+  const currentTransactionFees = monthlyRevenue * currentStandardRate + currentTransactions * currentFlatFee;
+  const currentTotalMonthlyCost = plan.price + currentTransactionFees;
+  // Plus Plan
+  const plusTransactionFees = revenueWithPlus * plusStandardRate;
+  const plusTotalMonthlyCost = plus.price + plusTransactionFees;
+
+  // Calculate transaction fees for both plans using current revenue and per-order flat fee
+  const plusTransactionFeesCurrent = monthlyRevenue * plusStandardRate + currentTransactions * plusFlatFee;
+  const transactionFeeSavings = currentTransactionFees - plusTransactionFeesCurrent;
+
+  // 4. ROI
+  const roi = currentTotalMonthlyCost - plusTotalMonthlyCost;
+
+  // Revenue Impact calculations
   const newAOV = aov > 0 ? aov * (1 + aovIncrease / 100) : 0;
-  const newConversion = conversion && conversion > 0 ? parseFloat(conversion) * (1 + conversionIncrease / 100) : 0;
-  const newOrders = orders * (1 + conversionIncrease / 100);
-  const newRevenue = newOrders * newAOV;
-  const improvedPlusFees = newRevenue * plus.rates.standard + newOrders * plus.rates.fee;
+  const newConversionRate = conversion && conversion > 0 ? parseFloat(conversion) * (1 + conversionIncrease / 100) : 0;
+  const revenueWithAOV = aov > 0 ? currentTransactions * (aov * (1 + aovIncrease / 100)) : 0;
+  const revenueWithConversion = conversion && conversion > 0 ? (estimatedVisitors * (parseFloat(conversion) * (1 + conversionIncrease / 100) / 100) * aov) : 0;
+  const revenueWithBoth = revenueWithPlus;
 
-  // Base ROI (no AOV/Conversion increase)
-  const basePlusFees = monthlyRevenue * plus.rates.standard + orders * plus.rates.fee;
-  const basePlusTotal = basePlusFees + plus.price;
-  const baseCurrentTotal = currentFees + plan.price;
-  const baseSavings = baseCurrentTotal - basePlusTotal;
+  // Calculate period multipliers
+  const periods = [
+    { label: '30 Days', multiplier: 30 / 30 }, // 1 month
+    { label: '90 Days', multiplier: 90 / 30 }, // 3 months
+    { label: '365 Days', multiplier: 365 / 30 }, // 12.166... months
+  ];
 
-  // Extra benefit from AOV/Conversion increases
-  const extraSales = newRevenue - monthlyRevenue;
-  const extraPlusFees = improvedPlusFees - basePlusFees;
-  const extraNetProfit = extraSales - extraPlusFees;
-
-  // Total ROI
-  const totalNetSavings = baseSavings + extraNetProfit;
+  // Helper to format values for each period
+  function getPeriodValues(multiplier) {
+    return {
+      platformFeeCurrent: plan.price * multiplier,
+      platformFeePlus: plus.price * multiplier,
+      transactionFeeSavings: transactionFeeSavings * multiplier,
+      additionalSales: (revenueWithPlus - monthlyRevenue) * multiplier,
+      finalROI:
+        (plan.price - plus.price + transactionFeeSavings + (revenueWithPlus - monthlyRevenue)) * multiplier,
+    };
+  }
 
   return (
     <div className="app-bg">
@@ -176,15 +218,37 @@ function App() {
             />
           </div>
           <RateTable rates={PLAN_RATES[currentPlan]} />
+          <div className="form-group">
+            <label>Standard Card Rate (%)</label>
+            <input
+              type="number"
+              step="0.0001"
+              value={currentStandardRate}
+              onChange={e => setCurrentStandardRate(Number(e.target.value))}
+            />
+          </div>
+          <div className="form-group">
+            <label>Flat Fee ($)</label>
+            <input
+              type="number"
+              step="0.01"
+              value={currentFlatFee}
+              onChange={e => setCurrentFlatFee(Number(e.target.value))}
+            />
+          </div>
           <div className="processing-fees-block">
             <h3>Processing Fees</h3>
             <div className="breakdown-row">
-              <span>Processing Fees</span>
-              <span>${currentFees.toLocaleString(undefined, {maximumFractionDigits: 0})}</span>
+              <span>Transaction Fees</span>
+              <span>${currentTransactionFees.toLocaleString(undefined, {maximumFractionDigits: 2})}</span>
             </div>
             <div className="breakdown-row">
               <span>Platform Fee</span>
               <span>${plan.price}</span>
+            </div>
+            <div className="breakdown-row">
+              <span>Total Current Monthly Cost</span>
+              <span>${currentTotalMonthlyCost.toLocaleString(undefined, {maximumFractionDigits: 2})}</span>
             </div>
           </div>
         </section>
@@ -199,127 +263,122 @@ function App() {
               ))}
             </select>
           </div>
-          <div className="form-group">
-            <label>Projected AOV Increase (%)</label>
-            <input type="range" min={1} max={20} value={aovIncrease} onChange={e => setAovIncrease(Number(e.target.value))} />
-            <span className="slider-value">+{aovIncrease}%</span>
-          </div>
-          <div className="form-group">
-            <label>Projected Conversion Increase (%)</label>
-            <input type="range" min={1} max={20} value={conversionIncrease} onChange={e => setConversionIncrease(Number(e.target.value))} />
-            <span className="slider-value">+{conversionIncrease}%</span>
-          </div>
           <RateTable rates={PLAN_RATES['plus']} />
-          {/* Revenue Breakdown */}
-          <div className="revenue-breakdown">
-            <h3>Revenue Impact</h3>
-            <div className="breakdown-row">
-              <span>New AOV</span>
-              <span>{newAOV > 0 ? newAOV.toLocaleString(undefined, {maximumFractionDigits: 2}) : '-'}</span>
-            </div>
-            <div className="breakdown-row">
-              <span>New Conversion Rate</span>
-              <span>{newConversion > 0 ? newConversion.toLocaleString(undefined, {maximumFractionDigits: 2}) + '%' : '-'}</span>
-            </div>
-            <div className="breakdown-row">
-              <span>Current Revenue</span>
-              <span>${monthlyRevenue.toLocaleString(undefined, {maximumFractionDigits: 0})}</span>
-            </div>
-            <div className="breakdown-row">
-              <span>With Increased AOV (+{aovIncrease}%)</span>
-              <span>${(orders * newAOV).toLocaleString(undefined, {maximumFractionDigits: 0})}</span>
-            </div>
-            <div className="breakdown-row">
-              <span>With Increased Conversion (+{conversionIncrease}%)</span>
-              <span>${(orders * aov * (1 + conversionIncrease / 100)).toLocaleString(undefined, {maximumFractionDigits: 0})}</span>
-            </div>
-            <div className="breakdown-row">
-              <span>With Both Increases</span>
-              <span>${(newRevenue).toLocaleString(undefined, {maximumFractionDigits: 0})}</span>
-            </div>
+          <div className="form-group">
+            <label>Standard Card Rate (%)</label>
+            <input
+              type="number"
+              step="0.0001"
+              value={plusStandardRate}
+              onChange={e => setPlusStandardRate(Number(e.target.value))}
+            />
+          </div>
+          <div className="form-group">
+            <label>Flat Fee ($)</label>
+            <input
+              type="number"
+              step="0.01"
+              value={plusFlatFee}
+              onChange={e => setPlusFlatFee(Number(e.target.value))}
+            />
           </div>
           <div className="processing-fees-block">
             <h3>Processing Fees</h3>
             <div className="breakdown-row">
-              <span>Processing Fees</span>
-              <span>${improvedPlusFees.toLocaleString(undefined, {maximumFractionDigits: 0})}</span>
+              <span>Transaction Fees (Current Revenue)</span>
+              <span>${plusTransactionFeesCurrent.toLocaleString(undefined, {maximumFractionDigits: 2})}</span>
             </div>
             <div className="breakdown-row">
               <span>Platform Fee</span>
               <span>${plus.price}</span>
             </div>
+            <div className="breakdown-row">
+              <span>Total Plus Monthly Cost</span>
+              <span>${plusTotalMonthlyCost.toLocaleString(undefined, {maximumFractionDigits: 2})}</span>
+            </div>
+          </div>
+          <div style={{ marginTop: 24 }}>
+            <div style={{ fontWeight: 'bold', fontSize: 16, marginBottom: 8 }}>Revenue Impact</div>
+            <table style={{ width: '100%', borderCollapse: 'collapse', background: '#fafbfc', borderRadius: 8 }}>
+              <tbody>
+                <tr>
+                  <td style={{ fontWeight: 'bold', padding: 4 }}>New AOV</td>
+                  <td style={{ textAlign: 'right', padding: 4 }}>{newAOV > 0 ? newAOV.toLocaleString(undefined, {maximumFractionDigits: 2}) : '-'}</td>
+                </tr>
+                <tr>
+                  <td style={{ fontWeight: 'bold', padding: 4 }}>New Conversion Rate</td>
+                  <td style={{ textAlign: 'right', padding: 4 }}>{newConversionRate > 0 ? (newConversionRate).toLocaleString(undefined, {maximumFractionDigits: 2}) + '%' : '-'}</td>
+                </tr>
+                <tr>
+                  <td style={{ fontWeight: 'bold', padding: 4 }}>Current Revenue</td>
+                  <td style={{ textAlign: 'right', padding: 4 }}>${monthlyRevenue.toLocaleString(undefined, {maximumFractionDigits: 2})}</td>
+                </tr>
+                <tr>
+                  <td style={{ padding: 4 }}>With Increased AOV</td>
+                  <td style={{ textAlign: 'right', padding: 4 }}>${revenueWithAOV.toLocaleString(undefined, {maximumFractionDigits: 2})}</td>
+                </tr>
+                <tr>
+                  <td style={{ padding: 4 }}>With Increased Conversion</td>
+                  <td style={{ textAlign: 'right', padding: 4 }}>${revenueWithConversion.toLocaleString(undefined, {maximumFractionDigits: 2})}</td>
+                </tr>
+                <tr>
+                  <td style={{ padding: 4 }}>With Both Increases</td>
+                  <td style={{ textAlign: 'right', padding: 4 }}>${revenueWithBoth.toLocaleString(undefined, {maximumFractionDigits: 2})}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div style={{ background: '#e6ffe6', border: '2px solid #4caf50', borderRadius: 8, padding: 12, marginTop: 16, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <span style={{ fontWeight: 'bold', fontSize: 16, color: '#388e3c' }}>Monthly Additional Sales from Improvements</span>
+            <span style={{ fontSize: 20, fontWeight: 'bold', color: '#2e7d32' }}>${(revenueWithPlus - monthlyRevenue).toLocaleString(undefined, {maximumFractionDigits: 2})}</span>
           </div>
         </section>
         {/* ROI Summary Card */}
-        <section className="roi-card summary-card">
-          <h2>ROI Summary</h2>
-          {/* Base ROI */}
-          <div className="roi-section">
-            <div className="roi-section-title">Base ROI (No AOV/Conversion Increase)</div>
-            <div className="breakdown-row">
-              <span>Current Monthly Cost</span>
-              <span>${baseCurrentTotal.toLocaleString(undefined, {maximumFractionDigits: 0})}</span>
-            </div>
-            <div className="breakdown-row">
-              <span>Plus Processing Fees</span>
-              <span>${basePlusFees.toLocaleString(undefined, {maximumFractionDigits: 0})}</span>
-            </div>
-            <div className="breakdown-row">
-              <span>Plus Platform Fee</span>
-              <span>${plus.price.toLocaleString(undefined, {maximumFractionDigits: 0})}</span>
-            </div>
-            <div className="breakdown-row">
-              <span>Plus Monthly Cost (incl. platform fee)</span>
-              <span>${basePlusTotal.toLocaleString(undefined, {maximumFractionDigits: 0})}</span>
-            </div>
-            <div className="breakdown-row">
-              <span>Base Monthly Savings</span>
-              <span>${baseSavings > 0 ? baseSavings.toLocaleString(undefined, {maximumFractionDigits: 0}) : '0'}</span>
-            </div>
-          </div>
-          {/* Extra Benefit */}
-          <div className="roi-section roi-bonus">
-            <div className="roi-section-title">Extra Benefit from AOV & Conversion Increase</div>
-            <div className="breakdown-row">
-              <span>Extra Sales</span>
-              <span>${extraSales > 0 ? extraSales.toLocaleString(undefined, {maximumFractionDigits: 0}) : '0'}</span>
-            </div>
-            <div className="breakdown-row">
-              <span>Extra Plus Fees</span>
-              <span>${extraPlusFees > 0 ? extraPlusFees.toLocaleString(undefined, {maximumFractionDigits: 0}) : '0'}</span>
-            </div>
-            <div className="breakdown-row">
-              <span>Extra Net Profit</span>
-              <span>${extraNetProfit > 0 ? extraNetProfit.toLocaleString(undefined, {maximumFractionDigits: 0}) : '0'}</span>
-            </div>
-          </div>
-          {/* Total ROI */}
-          <div className="roi-section">
-            <div className="roi-section-title">Total ROI (Combined)</div>
-            <div className="breakdown-row">
-              <span>Total Plus Processing Fees</span>
-              <span>${improvedPlusFees.toLocaleString(undefined, {maximumFractionDigits: 0})}</span>
-            </div>
-            <div className="breakdown-row">
-              <span>Total Plus Platform Fee</span>
-              <span>${plus.price.toLocaleString(undefined, {maximumFractionDigits: 0})}</span>
-            </div>
-            <div className="breakdown-row">
-              <span>Total Plus Cost (incl. platform fee)</span>
-              <span>${(improvedPlusFees + plus.price).toLocaleString(undefined, {maximumFractionDigits: 0})}</span>
-            </div>
-            <div className="breakdown-row">
-              <span>Total Net Savings</span>
-              <span className="breakdown-savings">${totalNetSavings.toLocaleString(undefined, {maximumFractionDigits: 0})}</span>
-            </div>
-            <div className={`roi-indicator ${totalNetSavings >= 0 ? 'positive' : 'negative'}`}>
-              {totalNetSavings >= 0 ? 'Positive ROI' : 'Negative ROI'}
-            </div>
-          </div>
-        </section>
+        <div className="roi-summary-multi" style={{ display: 'flex', gap: 16, flexWrap: 'nowrap', overflowX: 'auto', paddingBottom: 16, justifyContent: 'center' }}>
+          {periods.map(({ label, multiplier }) => {
+            const values = getPeriodValues(multiplier);
+            return (
+              <section className="roi-card summary-card" key={label} style={{ minWidth: 250, flex: '0 0 250px' }}>
+                <h2>{label} ROI Summary</h2>
+                <div className="roi-section">
+                  <div className="roi-section-title">ROI Comparison</div>
+                  <div className="breakdown-row">
+                    <span>Current Platform Fee</span>
+                    <span>${values.platformFeeCurrent.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+                  </div>
+                  <div className="breakdown-row">
+                    <span>Plus Platform Fee</span>
+                    <span>${values.platformFeePlus.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+                  </div>
+                  <div className="breakdown-row">
+                    <span>Transaction Fee Savings</span>
+                    <span>${values.transactionFeeSavings.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+                  </div>
+                  <div className="breakdown-row">
+                    <span>Additional Sales from Improvements</span>
+                    <span>${values.additionalSales.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+                  </div>
+                  <div className="breakdown-row">
+                    <span>Final ROI</span>
+                    <span className="breakdown-savings">${values.finalROI.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+                  </div>
+                </div>
+              </section>
+            );
+          })}
+        </div>
       </main>
     </div>
   );
 }
 
 export default App;
+
+
+
+
+
+
+
+
+
