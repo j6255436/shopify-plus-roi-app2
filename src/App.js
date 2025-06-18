@@ -263,6 +263,16 @@ function App() {
               ))}
             </select>
           </div>
+          <div className="form-group">
+            <label>Projected AOV Increase (%)</label>
+            <input type="range" min={1} max={20} value={aovIncrease} onChange={e => setAovIncrease(Number(e.target.value))} />
+            <span className="slider-value">+{aovIncrease}%</span>
+          </div>
+          <div className="form-group">
+            <label>Projected Conversion Increase (%)</label>
+            <input type="range" min={1} max={20} value={conversionIncrease} onChange={e => setConversionIncrease(Number(e.target.value))} />
+            <span className="slider-value">+{conversionIncrease}%</span>
+          </div>
           <RateTable rates={PLAN_RATES['plus']} />
           <div className="form-group">
             <label>Standard Card Rate (%)</label>
